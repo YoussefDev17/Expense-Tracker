@@ -1,5 +1,10 @@
+// import 'dart:nativewrappers/_internal/vm/lib/ffi_native_type_patch.dart';
+
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:expense_tracker/Expense_Data.dart';
+import 'package:expense_tracker/Expense_Item.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class Expenses extends StatefulWidget {
   const Expenses({super.key});
@@ -8,6 +13,11 @@ class Expenses extends StatefulWidget {
 }
 
 class _ExpensesState extends State<Expenses> {
+  DateTime? _Picked;
+  TextEditingController _dateController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _amountController = TextEditingController();
+
   BarChartGroupData _createBarChartGroupData(int x) {
     return BarChartGroupData(
       x: x,
@@ -74,25 +84,156 @@ class _ExpensesState extends State<Expenses> {
     );
   }
 
+  Future<void> _SelectDate() async {
+    _Picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+
+    if (_Picked != null) {
+      setState(() {
+        _dateController.text = _Picked.toString().split(" ")[0];
+      });
+    }
+  }
+
+  void _saveNewExpense(String Name, String Amount, DateTime Date) {
+    var NewExpense = ExpenseItem(name: Name, amount: Amount, date: Date);
+    setState(() {
+      ExpenseData.addExpense(NewExpense);
+    });
+  }
+
+  void _clearDialog() {
+    _nameController.clear();
+    _amountController.clear();
+    _dateController.clear();
+  }
+
+  Future _buildShowDialogAddExpense() {
+    final _formKey = GlobalKey<FormState>();
+    return showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          content: Form(
+            key: _formKey,
+            child: Container(
+              width: 300, // 👈 custom width
+              height: 290, // 👈 custom height
+              padding: EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment:
+                    CrossAxisAlignment.start, // 👈 align to the left
+                children: [
+                  Text(
+                    'New Expense',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.normal,
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Container(
+                    height: 50,
+                    child: TextFormField(
+                      controller: _nameController,
+                      autofocus: true,
+                      // The validator receives the text that the user has entered.
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Expense name cannot be empty';
+                        }
+                        return null;
+                      },
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      decoration: const InputDecoration(
+                        border: UnderlineInputBorder(),
+                        labelText: 'Expense Name',
+                        // hintText: 'Enter the name of the expense',
+                      ),
+                    ),
+                  ),
+
+                  SizedBox(height: 5),
+                  Container(
+                    height: 50,
+                    child: TextFormField(
+                      controller: _amountController,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Amount cannot be empty';
+                        }
+                        return null;
+                      },
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      decoration: const InputDecoration(
+                        border: UnderlineInputBorder(),
+                        labelText: 'Amount',
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  Container(
+                    height: 50,
+                    child: TextField(
+                      controller: _dateController,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.calendar_today),
+                        border: OutlineInputBorder(borderSide: BorderSide.none),
+                        filled: true,
+                        labelText: 'Date',
+                      ),
+                      onTap: _SelectDate,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      ElevatedButton(
+                        child: Text('Cancel'),
+                        onPressed: () {
+                          _clearDialog();
+                          Navigator.of(context).pop(); // Close the dialog
+                        },
+                      ),
+                      SizedBox(width: 10),
+                      ElevatedButton(
+                        child: Text('Save'),
+                        onPressed: () {
+                          if (_formKey.currentState?.validate() ?? false) {
+                            // If the form is valid, save the new expense
+                            final name = _nameController.text;
+                            final amount = _amountController.text;
+                            _saveNewExpense(name, amount, _Picked!);
+                            _clearDialog();
+                            Navigator.of(context).pop(); // Close the dialog
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildButtonAddExpense() {
     return FloatingActionButton(
       onPressed: () {
         // Execute Modal Bottom Sheet
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return Dialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Container(
-                width: 300, // 👈 custom width
-                height: 250, // 👈 custom height
-                padding: EdgeInsets.all(16),
-              ),
-            );
-          },
-        );
+        _buildShowDialogAddExpense();
       },
       shape: CircleBorder(),
       backgroundColor: const Color.fromARGB(
@@ -105,6 +246,62 @@ class _ExpensesState extends State<Expenses> {
     );
   }
 
+  void _deleteExpense(int expenseID) {
+    setState(() {
+      ExpenseData.deleteExpense(expenseID);
+    });
+  }
+
+  Widget _buildExpenseWidget(ExpenseItem expense, int id) {
+    return Slidable(
+      key: ValueKey(id),
+
+      // Add sliding action when swiping to the left
+      startActionPane: ActionPane(
+        motion: const ScrollMotion(),
+        children: [
+          SlidableAction(
+            onPressed: (context) {
+              // _deleteExpense(expense); // your delete method
+              _deleteExpense(id); // your delete method
+            },
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+            icon: Icons.delete,
+            label: 'Delete',
+          ),
+        ],
+      ),
+      child: ListTile(
+        shape: RoundedRectangleBorder(
+          side: BorderSide(color: Colors.grey), // gray border color
+          borderRadius: BorderRadius.circular(5), // optional rounded corners
+        ),
+        title: Text(expense.name),
+        subtitle: Text(expense.date.toString().split(" ")[0]),
+        trailing: Text('\$${expense.amount.toString()}'),
+      ),
+    );
+  }
+
+  Widget _PrintExpenses() {
+    final listOfExpenses = ExpenseData.expenses;
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Expanded(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              for (var expense in listOfExpenses)
+                _buildExpenseWidget(expense, listOfExpenses.indexOf(expense)),
+              SizedBox(height: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,10 +311,8 @@ class _ExpensesState extends State<Expenses> {
         children: [
           _buildBarChart(),
           const SizedBox(height: 20),
-          const Text(
-            'here will be  Expenses',
-            style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-          ),
+          ExpenseData.isEmpty() ? const SizedBox() : _PrintExpenses(),
+          const SizedBox(height: 20),
         ],
       ),
       floatingActionButton: _buildButtonAddExpense(),
