@@ -18,55 +18,57 @@ class _ExpensesState extends State<Expenses> {
   final _nameController = TextEditingController();
   final _amountController = TextEditingController();
 
-  BarChartGroupData _createBarChartGroupData(int x) {
-    return BarChartGroupData(
-      x: x,
+  List<double> _getWeekleyTotal() {
+    final totals = List<double>.filled(7, 0.0); // 7 Days of the week
 
-      barRods: [
-        BarChartRodData(
-          toY: 25,
-          color: Colors.grey[800],
-          width: 25,
-          borderRadius: BorderRadius.zero,
-          backDrawRodData: BackgroundBarChartRodData(
-            show: true,
-            toY: 200,
-            color: Colors.grey[200],
+    for (var expense in ExpenseData.expenses) {
+      final dayOfWeek = expense.date.weekday - 1; // Convert to 0-6 range
+      totals[dayOfWeek] += double.parse(expense.amount);
+    }
+
+    return totals;
+  }
+
+  List<BarChartGroupData> _createBarGroups(List<double> weeklyTotals) {
+    return List.generate(7, (index) {
+      return BarChartGroupData(
+        x: index,
+        barRods: [
+          BarChartRodData(
+            toY: weeklyTotals[index],
+            color: Colors.grey[800],
+            width: 25,
+            borderRadius: BorderRadius.zero,
+            backDrawRodData: BackgroundBarChartRodData(
+              show: true,
+              toY: 200, // Adjust this value as needed
+              color: Colors.grey[200],
+            ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    });
   }
 
   Widget _buildBarChart() {
-    // This function will build the bar chart
-    // You can use a package like charts_flutter or fl_chart to create the chart
+    final weeklyTotals = _getWeekleyTotal();
+    final barGroups = _createBarGroups(weeklyTotals);
+
     return Container(
       height: 200, // ✅ Important!
       width: double.infinity, // 💡 This makes it take all horizontal space
-      // margin: const EdgeInsets.all(20),
       margin: const EdgeInsets.only(top: 30),
       child: BarChart(
         BarChartData(
-          barGroups: [
-            _createBarChartGroupData(0),
-            _createBarChartGroupData(1),
-            _createBarChartGroupData(2),
-            _createBarChartGroupData(3),
-            _createBarChartGroupData(4),
-            _createBarChartGroupData(5),
-            _createBarChartGroupData(6),
-          ],
+          barGroups: barGroups,
           alignment: BarChartAlignment.spaceEvenly,
           titlesData: FlTitlesData(
             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
-              // 👈 You can keep bottom if needed
               sideTitles: SideTitles(
                 showTitles: true,
-
                 getTitlesWidget: (value, meta) {
                   const days = ['M', 'Tu', 'W', 'Th', 'F', 'Sa', 'Su'];
                   if (value.toInt() < 0 || value.toInt() >= days.length) {
@@ -83,6 +85,72 @@ class _ExpensesState extends State<Expenses> {
       ),
     );
   }
+
+  // BarChartGroupData _createBarChartGroupData(int x) {
+  //   return BarChartGroupData(
+  //     x: x,
+
+  //     barRods: [
+  //       BarChartRodData(
+  //         toY: 10, // here where i can update the value of the bar
+  //         color: Colors.grey[800],
+  //         width: 25,
+  //         borderRadius: BorderRadius.zero,
+  //         backDrawRodData: BackgroundBarChartRodData(
+  //           show: true,
+  //           toY: 200,
+  //           color: Colors.grey[200],
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
+
+  // Widget _buildBarChart() {
+  //   // This function will build the bar chart
+  //   // You can use a package like charts_flutter or fl_chart to create the chart
+  //   return Container(
+  //     height: 200, // ✅ Important!
+  //     width: double.infinity, // 💡 This makes it take all horizontal space
+  //     // margin: const EdgeInsets.all(20),
+  //     margin: const EdgeInsets.only(top: 30),
+  //     child: BarChart(
+  //       BarChartData(
+  //         barGroups: [
+  //           _createBarChartGroupData(0),
+  //           _createBarChartGroupData(1),
+  //           _createBarChartGroupData(2),
+  //           _createBarChartGroupData(3),
+  //           _createBarChartGroupData(4),
+  //           _createBarChartGroupData(5),
+  //           _createBarChartGroupData(6),
+  //         ],
+  //         alignment: BarChartAlignment.spaceEvenly,
+  //         titlesData: FlTitlesData(
+  //           topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+  //           rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+  //           leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+  //           bottomTitles: AxisTitles(
+  //             // 👈 You can keep bottom if needed
+  //             sideTitles: SideTitles(
+  //               showTitles: true,
+
+  //               getTitlesWidget: (value, meta) {
+  //                 const days = ['M', 'Tu', 'W', 'Th', 'F', 'Sa', 'Su'];
+  //                 if (value.toInt() < 0 || value.toInt() >= days.length) {
+  //                   return const SizedBox.shrink();
+  //                 }
+  //                 return Text(days[value.toInt()]);
+  //               },
+  //             ),
+  //           ),
+  //         ),
+  //         gridData: FlGridData(show: false), // ❌ Hide grid lines
+  //         borderData: FlBorderData(show: false), // ❌ Hide chart borders
+  //       ),
+  //     ),
+  //   );
+  // }
 
   Future<void> _SelectDate() async {
     _Picked = await showDatePicker(
